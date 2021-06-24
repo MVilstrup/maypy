@@ -1,8 +1,8 @@
 =========
-LazyStats
+maypy
 =========
 
-This is the documentation of **LazyStats**.
+This is the documentation of **maypy**.
 
 .. note::
 
