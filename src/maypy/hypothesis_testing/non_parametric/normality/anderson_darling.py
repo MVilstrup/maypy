@@ -1,6 +1,7 @@
 from typing import Optional
 
 from maypy.distributions import Distribution
+from maypy.experiment.interpretation import Interpretation
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
 import scipy.stats as st
@@ -32,7 +33,7 @@ class AndersonDarlingNormality(Test):
                         statistic=None,
                         p_value=None,
                         h0_rejected=lambda alpha: len(valid_alphas) > 0 and valid_alphas.max() >= alpha,
-                        interpretation=lambda alpha: len(valid_alphas) > 0 and valid_alphas.max() >= alpha)
+                        interpretation=lambda alpha: Interpretation(len(valid_alphas) > 0 and valid_alphas.max() >= alpha))
 
         self.experiment[P] = report
         return self.check_assumptions(report, P)

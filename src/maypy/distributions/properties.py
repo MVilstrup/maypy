@@ -4,6 +4,7 @@ from collections import namedtuple
 from functools import lru_cache
 
 from maypy.best_practices.sample_processing import prepare_data, sample_bins
+from maypy.utils import Interpretation
 from pandas.core.dtypes.common import is_numeric_dtype
 import numpy as np
 import pandas as pd
@@ -62,16 +63,16 @@ class DistributionProperties:
         Is is impossible to estimate whether numbers are continuous or discrete,
         but we can make a few checks to ensure no explicitly invalid data suchs as strings is used
         """
-        return all([
+        return Interpretation(result=all([
             is_numeric_dtype(self.data),  # Ensure all data is numeric
             len(np.unique(self.data)) > 2,  # Ensure there is no Boolean columns
             pd.isna(self.data).sum() == 0,  # Ensure no None values is used
-        ])
+        ]), confidence=True)
 
     @property
     @lru_cache
     def is_parametric(self):
-        return self.base.name == "norm"
+        return Interpretation(result=self.base.name == "norm", confidence=True)
 
     @property
     def CI(self):

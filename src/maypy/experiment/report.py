@@ -1,6 +1,7 @@
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from maypy import ALPHA
+from maypy.experiment.interpretation import Interpretation
 from maypy.utils import Document
 
 
@@ -25,6 +26,9 @@ class Report:
                 self.extra[key] = value
             else:
                 extra["Extra Info"][key] = value
+
+    def interpretation(self, alpha=None):
+        return self.interpretation_at_alpha[alpha if alpha is not None else float(ALPHA)]
 
     def set_conclusion(self, header):
         self.conclusion = header
@@ -57,24 +61,37 @@ class Report:
         doc = Document()
         doc.row[0: self.name][1:self.description]
         doc.row
-        doc.row[1: f"{self.statistic_name}: {self.statistic}"][2: f"p-value: {R(self.p_value, 5)}"]
+        doc.row[1: f"{self.statistic_name}: {R(self.statistic)}"][2: f"p-value: {R(self.p_value, 5)}"]
         doc.row
+
+        if self.assumptions:
+            doc.row
+            doc.row[0: "Test Assumptions"]
+            for key, result in self.assumptions.items():
+                if isinstance(result, Report):
+                    doc.row[0: key: "right"][1: result.interpretation()]
+                else:
+                    doc.row[0: key: "right"][1: Interpretation(result)]
+
+            doc.row
+
 
         doc.row[0: "Result at Significance"]
         header_row = doc.row[1: "H0 Rejected"][2: self.conclusion]
         for i, key in enumerate(self.extra_at_alpha.keys()):
-            header_row[i+3:key]
+            header_row[i+3:" ".join([k.capitalize() for k in key.split("_")])]
 
         for alpha in ALPHA.ALLOWED:
             row = doc.row[0: f"alpha: {alpha}": "right",
-                          1: self.h0_rejected_at_alpha[alpha]: "center",
-                          2: self.interpretation_at_alpha[alpha]: "center"]
+                          1: self.h0_rejected_at_alpha[alpha],
+                          2: self.interpretation(alpha)]
             for i, value_dict in enumerate(self.extra_at_alpha.values()):
                 value = value_dict[alpha]
                 if isinstance(value, float):
                     value = R(value)
 
                 row[i+3:value:"center"]
+
 
         if self.extra:
             for key, values in self.extra.items():

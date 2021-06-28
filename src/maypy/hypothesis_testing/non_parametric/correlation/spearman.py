@@ -1,6 +1,7 @@
 from typing import Optional
 
 from maypy.distributions import Distribution
+from maypy.experiment.interpretation import Interpretation
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
 import scipy.stats as st
@@ -48,8 +49,8 @@ class SpearmanCorrelationTest(Test):
                         conclusion="Correlated",
                         statistic=correlation_coefficient,
                         p_value=p_value,
-                        h0_rejected=lambda alpha: (p_value < alpha) and (correlation_coefficient > 0.6),
-                        interpretation=lambda alpha: (p_value < alpha) and (correlation_coefficient < 0.6))
+                        h0_rejected=lambda alpha: (p_value < alpha) and (correlation_coefficient < 0.6),
+                        interpretation=lambda alpha: Interpretation(correlation_coefficient < 0.6, p_value < alpha))
 
         self.experiment[(P, Q)] = report
         return self.check_assumptions(report, P, Q)
@@ -65,8 +66,8 @@ class SpearmanCorrelationTest(Test):
                         conclusion="Not Correlated",
                         statistic=correlation_coefficient,
                         p_value=p_value,
-                        h0_rejected=lambda alpha: (p_value < alpha) and (correlation_coefficient > 0.6),
-                        interpretation=lambda alpha: (p_value < alpha) and (correlation_coefficient > 0.6))
+                        h0_rejected=lambda alpha: (p_value < alpha) and (correlation_coefficient < 0.6),
+                        interpretation=lambda alpha: Interpretation(correlation_coefficient > 0.6, p_value < alpha))
 
         self.experiment[(P, Q)] = report
         return self.check_assumptions(report, P, Q)

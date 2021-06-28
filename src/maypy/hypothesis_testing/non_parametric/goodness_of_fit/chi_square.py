@@ -2,6 +2,7 @@ from typing import Optional
 
 from maypy.best_practices.correlation import  not_correlated
 from maypy.distributions import Distribution
+from maypy.experiment.interpretation import Interpretation
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
 import scipy.stats as st
@@ -41,7 +42,7 @@ class ChiSquareTest(Test):
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
-                        interpretation=lambda alpha: p_value > alpha)
+                        interpretation=lambda alpha: Interpretation(p_value > alpha))
 
         self.experiment[P] = report
         return self.check_assumptions(report, P)
@@ -60,7 +61,7 @@ class ChiSquareTest(Test):
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
-                        interpretation=lambda alpha: p_value > alpha)
+                        interpretation=lambda alpha: Interpretation(p_value > alpha))
 
         self.experiment[P] = report
         return self.check_assumptions(report, P, Q)

@@ -7,26 +7,6 @@ PARAMETRIC = "PARAMETRIC"
 NON_PARAMETRIC = "NON_PARAMETRIC"
 MIXED = "MIXED"
 
-
-def minimum_sample_size(requirement, P: Distribution, experiment=None):
-    if "minimum_sample_size" in P:
-        report = P["minimum_sample_size"]
-    else:
-        result = requirement < len(P)
-        report = Report("minimum_sample_size",
-                        "measure",
-                        statistic=None,
-                        p_value=None,
-                        h0_rejected=lambda alpha: result,
-                        interpretation=lambda alpha: result)
-        P["is_continuous"] = report
-
-    if experiment is not None:
-        experiment[P] = report
-
-    return report
-
-
 @lru_cache
 def pair_type(P: Distribution, Q: Distribution, *args):
     if P.is_parametric and Q.is_parametric:

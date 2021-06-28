@@ -6,6 +6,7 @@ from functools import lru_cache
 from collections import namedtuple
 
 from maypy import ALPHA
+
 from maypy.distributions.properties import DistributionProperties
 
 from maypy.experiment.experiment import Experiment
@@ -123,6 +124,9 @@ class Distribution(DistributionProperties):
                             loc=self.loc if loc is None else loc,
                             scale=self.scale if scale is None else scale)
 
+    def correlated(self, Q):
+        return self & Q
+
     def sample(self, sample_size=None, max_value=None):
         if sample_size is None:
             sample_size = len(self)
@@ -136,25 +140,48 @@ class Distribution(DistributionProperties):
         # When subtracting two distribution we return the n x m differences of the two underlying samples
         return np.sort([i - j for i, j in product(self.data, other.data)])
 
-    def __ge__(self, other):
-        from maypy.best_practices.different_means import greater_mean
-        self.name, other.name = "P", "Q"
-        experiment = Experiment("Distributions has different mean", self, other)
-        greater_mean(self, other, experiment)
+    def __and__(self, Q):
+        from maypy.best_practices.correlation import is_correlated
+        self.name, Q.name = "P", "Q"
+        experiment = Experiment("'P' and 'Q' are correlated", self, Q)
+        experiment.add(is_correlated, P=self, Q=Q)
         return experiment
 
-    def __le__(self, other):
-        from maypy.best_practices.different_means import lesser_mean
+    def __or__(self, Q):
+        from maypy.best_practices.correlation import not_correlated
+        self.name, Q.name = "P", "Q"
+        experiment = Experiment("'P' and 'Q' are not correlated", self, Q)
+        experiment.add(not_correlated, P=self, Q=Q)
+        return experiment
+
+    def __gt__(self, other):
+        from maypy.best_practices.different_means import greater_mean
+        from maypy.best_practices.confidence import unpaired_difference_confidence
+
         self.name, other.name = "P", "Q"
-        experiment = Experiment("Distributions has different mean", self, other)
-        lesser_mean(self, other, experiment)
+        experiment = Experiment("The mean of 'P' is higher than 'Q'", self, other)
+        experiment.add(greater_mean, P=self, Q=other)
+        experiment.add(unpaired_difference_confidence, P=self, Q=other)
+        return experiment
+
+    def __lt__(self, other):
+        from maypy.best_practices.different_means import lesser_mean
+        from maypy.best_practices.confidence import unpaired_difference_confidence
+
+        self.name, other.name = "P", "  Q"
+        experiment = Experiment("The mean of 'P' is lower than 'Q'", self, other)
+        experiment.add(lesser_mean, P=self, Q=other)
+        experiment.add(unpaired_difference_confidence, P=self, Q=other)
         return experiment
 
     def __ne__(self, other):
         from maypy.best_practices.different_means import different_mean
+        from maypy.best_practices.confidence import unpaired_difference_confidence
+
         self.name, other.name = "P", "Q"
         experiment = Experiment("Distributions has different mean", self, other)
-        different_mean(self, other, experiment)
+        experiment.add(different_mean, P=self, Q=other)
+        experiment.add(unpaired_difference_confidence, P=self, Q=other)
         return experiment
 
     def __iter__(self):
@@ -165,6 +192,7 @@ class Distribution(DistributionProperties):
         R = lambda x, d=3: round(x, d) if isinstance(x, float) else x
         doc = Document(3)
 
+        # @no:format
         doc.row[0: f"Distribution: {self.name}({self.class_name})" if self.name else f"Distribution: {self.class_name}",
                 1: f"RSS: {R(self.rss, 5)}"]
 
@@ -180,6 +208,7 @@ class Distribution(DistributionProperties):
         doc.row
         doc.row[0: "Continuous": "right"][1: self.is_continuous]
         doc.row[0: "Parametric": "right"][1: self.is_parametric]
+        # @no:format
 
         return repr(doc)
 
@@ -229,7 +258,7 @@ class Distribution(DistributionProperties):
         if self._alternatives:
             doc.row[0: "Alternatives"]
             for i, alt in enumerate(self._alternatives[:3]):
-                doc.row[0:i: "right", 1:type(alt).__name__, 2:f"RSS: {R(alt.rss)}"]
+                doc.row[0:i: "right", 1:type(alt).__name__, 2:f"RSS: {R(alt.rss)}", 3:f"Energy: {R(alt.energy)}"]
 
         doc.row
 

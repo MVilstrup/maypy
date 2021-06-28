@@ -23,6 +23,14 @@ class Experiment:
 
         self.active = False
 
+    def add(self, test, P, Q=None):
+        if Q is not None:
+            report = test(P, Q)
+            self[(P, Q)] = report
+        else:
+            report = test(P)
+            self[P] = report
+
     def failure(self, explanation, report, distribution):
         self.failure_explanation = explanation
         self.failure_report = report

@@ -3,6 +3,7 @@ from typing import Optional
 from maypy import ALPHA
 from maypy.best_practices.correlation import not_correlated
 from maypy.distributions import Distribution
+from maypy.experiment.interpretation import Interpretation
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
 import scipy.stats as st
@@ -24,7 +25,7 @@ class KolmogorovSmirnovTest(Test):
 
         if Q is not None:
             report.add_assumption("Q is continuous", Q.is_continuous)
-            report.add_assumption("P & Q not correlated", bool(not_correlated(P, Q)))
+            report.add_assumption("P & Q are not correlated", not_correlated(P, Q).interpretation())
 
         return report
 
@@ -62,12 +63,10 @@ class KolmogorovSmirnovTest(Test):
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
                         # The p_value should be less than alpha to be significant
-                        interpretation=lambda alpha: p_value < alpha)
+                        interpretation=lambda alpha: Interpretation(p_value < alpha, statistic < critical_d(alpha)))
 
         report.at_alpha(critical_d=critical_d, below_critical_d=lambda alpha: statistic < critical_d(alpha))
-
-        self.experiment[(P, Q)] = report
-
+        report.at_alpha(P_Q_not_correlated=not_correlated(P, Q).interpretation)
         return report
 
     def less_than(self, P: Distribution, Q: Distribution):
@@ -114,7 +113,6 @@ class KolmogorovSmirnovTest(Test):
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
-                        interpretation=lambda alpha: p_value > alpha)
+                        interpretation=lambda alpha: Interpretation(p_value > alpha))
 
-        self.experiment[P] = report
         return self.check_assumptions(report, P)
