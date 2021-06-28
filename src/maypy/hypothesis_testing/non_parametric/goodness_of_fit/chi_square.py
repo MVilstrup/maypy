@@ -1,7 +1,6 @@
 from typing import Optional
 
-from maypy.best_practices.checks import is_continuous
-from maypy.best_practices.correlation import is_correlated
+from maypy.best_practices.correlation import  not_correlated
 from maypy.distributions import Distribution
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
@@ -12,41 +11,56 @@ class ChiSquareTest(Test):
     NULL_HYPOTHESIS = "The elements of P and Q *ARE* from the same underlying distribution"
     ALTERNATE_HYPOTHESIS = "The elements of P and Q *ARE NOT* from the same underlying distribution"
 
-    def check_assumptions(self, P: Distribution, Q: Optional[Distribution] = None):
-        helper = "The ChiSquare Test can only handle continuous distributions"
-        self.distribution_assumption(is_continuous, P, helper)
-        self.distribution_assumption(is_continuous, Q, helper)
+    def check_assumptions(self, report, P: Distribution, Q: Optional[Distribution] = None):
+        """
 
-        helper = "The ChiSquare Test cannot handle two correlated distributions"
-        self.pair_assumption(is_correlated, P, Q, helper)
+        :param report:
+        :param P:
+        :param Q:
+        :return:
+        """
+        report.add_assumption("P is continuous", P.is_continuous)
 
-    def normality(self, P, test_sample=False):
-        self.check_assumptions(P)
+        if Q is not None:
+            report.add_assumption("Q is continuous", Q.is_continuous)
+            report.add_assumption("P & Q not correlated", bool(not_correlated(P, Q)))
 
-        if test_sample:
-            statistic, p_value = st.chisquare(P.data, P.sample())
-        else:
-            statistic, p_value = st.chisquare(P.data)
+        return report
+
+    def normality(self, P):
+        """
+
+        :param P:
+        :return:
+        """
+        statistic, p_value = st.chisquare(P.data)
 
         report = Report("Chi Square Normality",
                         "chi-statistic",
+                        conclusion="Is Normal",
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
                         interpretation=lambda alpha: p_value > alpha)
 
         self.experiment[P] = report
-        return report
+        return self.check_assumptions(report, P)
 
     def goodness_of_fit(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
+        """
+
+        :param P:
+        :param Q:
+        :return:
+        """
         statistic, p_value = st.chisquare(P.data, Q.data)
         report = Report("goodness_of_fit",
                         "chi-statistic",
+                        conclusion="P resembles Q",
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
                         interpretation=lambda alpha: p_value > alpha)
 
         self.experiment[P] = report
-        return report
+        return self.check_assumptions(report, P, Q)

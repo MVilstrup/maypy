@@ -24,6 +24,10 @@ class __ALPHA__:
         self.alpha = initial_alpha
         self.prev_alpha = initial_alpha
 
+    @property
+    def confidence(self):
+        return 1 - self.alpha
+
     def __enter__(self):
         return self
 
@@ -40,6 +44,24 @@ class __ALPHA__:
 
     def __float__(self):
         return self.alpha
+
+    def __lt__(self, other):
+        return self.alpha < other
+
+    def __le__(self, other):
+        return self.alpha <= other
+
+    def __gt__(self, other):
+        return self.alpha > other
+
+    def __ge__(self, other):
+        return self.alpha >= other
+
+    def __eq__(self, other):
+        return self.alpha == other
+
+    def __ne__(self, other):
+        return self.alpha != other
 
 
 ALPHA = __ALPHA__(__ALPHA__.DEFAULT)

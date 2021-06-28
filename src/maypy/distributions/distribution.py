@@ -1,54 +1,39 @@
+from itertools import product
+
 import scipy.stats as st
-import warnings
-import pandas as pd
 import numpy as np
 from functools import lru_cache
-import inspect
-from collections import namedtuple, defaultdict
+from collections import namedtuple
 
-from maypy.best_practices.sample_processing import prepare_data, sample_bins
+from maypy import ALPHA
+from maypy.distributions.properties import DistributionProperties
+
 from maypy.experiment.experiment import Experiment
 from maypy.utils import Document
 
 
-class Distribution:
+class Distribution(DistributionProperties):
 
-    def __init__(self, data, distribution, num_samples=-1, args=None, loc=None, scale=None, experiment=None):
+    def __init__(self, data, distribution, num_samples=-1, args=None, loc=None, scale=None, experiment=None,
+                 alternatives=None):
+        super().__init__(data, distribution, num_samples)
         self.name = None
         self.distribution_name = distribution.name.capitalize()
-        self.data = prepare_data(data, max_size=num_samples)
-        self.data_bins, self.data_observations = sample_bins(self.data)
 
         self.args = args
         self.loc = loc
         self.scale = scale
-        self.base = distribution
         self._dist = None
         self._experiment = experiment
-        self.properties = defaultdict(dict)
+        self._alternatives = alternatives if alternatives is not None else []
 
     @staticmethod
     def example():
         raise NotImplementedError()
 
     @property
-    def dist(self):
-        if self._dist is None:
-            with warnings.catch_warnings():
-                warnings.filterwarnings('ignore')
-                if self.args is None:
-                    self.args = self.base.fit(self.data)
-                    self.loc, self.scale = self.args[-2], self.args[-1]
-
-                self._dist = self.base(*self.args)
-        return self._dist
-
-    @property
-    def kwargs(self):
-        if self.args:
-            return dict(zip(inspect.signature(self.base.__init__).parameters.keys(), self.args))
-
-        return {}
+    def class_name(self):
+        return type(self).__name__
 
     @property
     def CLT(self):
@@ -61,6 +46,20 @@ class Distribution:
         sample_std = np.std(self.data) / np.sqrt(sample_size)
 
         return self.copy(distribution=Normal, args=(population_mean, sample_std))
+
+    @property
+    @lru_cache
+    def chi_square(self):
+        Result = namedtuple("Result", ["statistic", "p_value"])
+        statistic, p_value = st.chisquare(f_obs=self.data, f_exp=self.sample())
+        return Result(statistic, p_value)
+
+    @property
+    def chi_statistic(self):
+        return self.chi_square.statistic
+
+    def is_valid(self):
+        return self.chi_square.p_value < ALPHA
 
     @property
     @lru_cache
@@ -80,41 +79,31 @@ class Distribution:
         score = st.energy_distance(self.data_observations, self.pdf(self.data_bins))
         return score if score > 0 else np.inf
 
-    @property
-    def stats(self):
-        return self.dist.stats()
+    def set_alternatives(self, alternatives):
+        for alt in alternatives:
+            if hasattr(self, f"as_{alt.class_name}") or alt.class_name == self.class_name:
+                continue
 
-    @property
-    def entropy(self):
-        return self.dist.entropy()
-
-    @property
-    @lru_cache
-    def chi_square(self):
-        Result = namedtuple("Result", ["statistic", "p_value"])
-        statistic, p_value = st.chisquare(f_obs=self.data, f_exp=self.sample())
-        return Result(statistic, p_value)
-
-    @property
-    def chi_statistic(self):
-        return self.chi_square.statistic
-
-    def is_valid(self, alpha=0.05):
-        return self.chi_square.p_value < alpha
+            setattr(self, f"as_{alt.class_name}", alt)
+            self._alternatives.append(alt)
+            alt.set_alternatives(alternatives)
 
     def pdf(self, x=None):
         if x is None:
             x = len(self)
         return self.dist.pdf(x)
 
+    def ppf(self, value):
+        return self.dist.ppf(value)
+
     def cdf(self, x=None):
         if x is None:
-            x = len(self)
+            x = sorted(self.data)
         return self.dist.cdf(x)
 
     def sf(self, x=None):
         if x is None:
-            x = len(self)
+            x = self.data
         return self.dist.sf(x)
 
     def probability_densities(self, x=None):
@@ -125,11 +114,6 @@ class Distribution:
 
     def survival(self, x=None):
         return self.sf(x)
-
-    @property
-    def plot(self):
-        from maypy.plot import Plot
-        return Plot(self)
 
     def copy(self, distribution=None, args=None, loc=None, scale=None):
         distribution = type(self) if distribution is None else distribution
@@ -145,65 +129,85 @@ class Distribution:
         estimated = self.dist.rvs(sample_size)
         return estimated[estimated <= max_value] if max_value else estimated
 
-    def __setitem__(self, key, value):
-        self.properties[key] = value
-
-    def __contains__(self, item):
-        return item in self.properties
-
-    def __getitem__(self, item):
-        return self.properties[item]
-
     def __len__(self):
         return len(self.data)
 
+    def __sub__(self, other):
+        # When subtracting two distribution we return the n x m differences of the two underlying samples
+        return np.sort([i - j for i, j in product(self.data, other.data)])
+
     def __ge__(self, other):
-        from maypy.distributions.distribution_pair import DistributionPair
-        self.name = "P"
-        other.name = "Q"
+        from maypy.best_practices.different_means import greater_mean
+        self.name, other.name = "P", "Q"
         experiment = Experiment("Distributions has different mean", self, other)
-        DistributionPair.mean_greater_than(self, other, experiment)
+        greater_mean(self, other, experiment)
         return experiment
 
     def __le__(self, other):
-        from maypy.distributions.distribution_pair import DistributionPair
-        self.name = "P"
-        other.name = "Q"
+        from maypy.best_practices.different_means import lesser_mean
+        self.name, other.name = "P", "Q"
         experiment = Experiment("Distributions has different mean", self, other)
-        DistributionPair.mean_less_than(self, other, experiment)
+        lesser_mean(self, other, experiment)
         return experiment
 
     def __ne__(self, other):
-        from maypy.distributions.distribution_pair import DistributionPair
-        self.name = "P"
-        other.name = "Q"
+        from maypy.best_practices.different_means import different_mean
+        self.name, other.name = "P", "Q"
         experiment = Experiment("Distributions has different mean", self, other)
-        DistributionPair.mean_not_equal(self, other, experiment)
+        different_mean(self, other, experiment)
         return experiment
 
     def __iter__(self):
         return iter(self.data)
 
+    @property
+    def summary(self):
+        R = lambda x, d=3: round(x, d) if isinstance(x, float) else x
+        doc = Document(3)
+
+        doc.row[0: f"Distribution: {self.name}({self.class_name})" if self.name else f"Distribution: {self.class_name}",
+                1: f"RSS: {R(self.rss, 5)}"]
+
+        doc.row[1:f"Sample Mean: {R(self.sample_mean)}",
+                2:f"Sample Variance: {R(self.sample_variance)}",
+                3: f"Sample Median: {R(self.sample_median)}"]
+        doc.row[1: f"Mean: {R(self.mean)}",
+                2: f"Variance: {R(self.variance)}",
+                3: f"Median: {R(self.median)}"]
+
+
+        # Distribution Properties
+        doc.row
+        doc.row[0: "Continuous": "right"][1: self.is_continuous]
+        doc.row[0: "Parametric": "right"][1: self.is_parametric]
+
+        return repr(doc)
+
     def __repr__(self):
         R = lambda x: round(x, 3) if isinstance(x, float) else x
         doc = Document(3)
-        T = type(self).__name__
 
-        # Sample information
-        doc.row[0: f"Sample Size: {len(self.data)}"]
-        doc.row[1:f"Mean: {R(np.mean(self.data))}",
-                2:f"Variance: {R(np.var(self.data))}",
-                3: f"Median: {R(np.median(self.data))}"]
+        # @no:format Sample information
+        doc.row[0: f"Sample"]
         doc.row
+        doc.row[0: f"Size: {len(self.data)}",
+                1:f"Mean: {R(self.sample_mean)}",
+                2:f"Variance: {R(self.sample_variance)}",
+                3: f"Median: {R(self.sample_median)}"]
+        doc.row
+        doc.row
+        # @do:format
 
-        # Distribution information
-        doc.row[0: f"Distribution: {self.name}({T})" if self.name else f"Distribution: {T}",
+        # @no:format Distribution information
+        doc.row[0: f"Distribution: {self.name}({self.class_name})" if self.name else f"Distribution: {self.class_name}",
                 1: f"RSS: {R(self.rss)}",
-                2: f"Energy: {R(self.energy)}",]
-        doc.row[1: f"Mean: {R(self.dist.mean())}",
-                2: f"Variance: {R(self.dist.var())}",
-                3: f"Median: {R(self.dist.median())}"]
+                2: f"Energy: {R(self.energy)}"]
+
+        doc.row[1: f"Mean: {R(self.mean)}",
+                2: f"Variance: {R(self.variance)}",
+                3: f"Median: {R(self.median)}"]
         doc.row
+        # @do:format
 
         # Found Parameters
         doc.row[0: "Parameters":"right"][2:f"Central Limit":"right"]
@@ -219,42 +223,20 @@ class Distribution:
         rows[1][2: f"Variance":"right"][3: R(clt.dist.var())]
         rows[2][2: f"Median":"right"][3: R(clt.dist.median())]
         doc.row
+        doc.row
 
+        # Alternative Distributions
+        if self._alternatives:
+            doc.row[0: "Alternatives"]
+            for i, alt in enumerate(self._alternatives[:3]):
+                doc.row[0:i: "right", 1:type(alt).__name__, 2:f"RSS: {R(alt.rss)}"]
 
-        # Discovered Properties
-        if self.properties:
-            doc.row[0: "Tested Properties"]
-            for name, value in self.properties.items():
-                doc.row[0: name: "right"][1: bool(value)]
+        doc.row
+
+        # Distribution Properties
+        doc.row[0: "Distribution Properties"]
+        doc.row
+        doc.row[0: "Continuous": "right"][1: self.is_continuous]
+        doc.row[0: "Parametric": "right"][1: self.is_parametric]
 
         return repr(doc)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

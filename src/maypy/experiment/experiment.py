@@ -3,17 +3,17 @@ from uuid import uuid4
 
 from collections import defaultdict
 
-from maypy.distributions import Distribution
-
 
 class Experiment:
 
-    def __init__(self, name, P: Distribution, Q:Distribution=None):
+    def __init__(self, name, P, Q=None):
+        from maypy.distributions import Distribution
+
         self.id = uuid4()
         self.name = name
 
-        self.P = P
-        self.Q = Q
+        self.P: Distribution = P
+        self.Q: Distribution = Q
 
         self.reports = defaultdict(dict)
 
@@ -23,7 +23,7 @@ class Experiment:
 
         self.active = False
 
-    def failure(self, explanation, report, distribution=Optional[Distribution]):
+    def failure(self, explanation, report, distribution):
         self.failure_explanation = explanation
         self.failure_report = report
         self.failure_distribution = distribution
@@ -47,7 +47,7 @@ class Experiment:
         self.active = False
 
     def __repr__(self):
-        repr_P = repr(self.P)
-        repr_Q = repr(self.Q)
+        repr_P = self.P.summary
+        repr_Q = self.Q.summary
         tests = map(repr, self.reports[(self.P.name, self.Q.name)].values())
         return "\n\n".join([self.name, repr_P, repr_Q, *tests])

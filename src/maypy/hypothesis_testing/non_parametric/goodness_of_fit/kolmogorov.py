@@ -1,8 +1,7 @@
 from typing import Optional
 
 from maypy import ALPHA
-from maypy.best_practices.checks import is_continuous
-from maypy.best_practices.correlation import is_correlated
+from maypy.best_practices.correlation import not_correlated
 from maypy.distributions import Distribution
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
@@ -13,27 +12,52 @@ import numpy as np
 class KolmogorovSmirnovTest(Test):
     ALPHA_CRIT_TABLE = dict(zip(ALPHA.ALLOWED, [1.22, 1.36, 1.48, 1.63, 1.73, 1.95]))
 
-    def check_assumptions(self, P: Distribution, Q: Optional[Distribution] = None):
-        helper = "The Kolmogorov-Smirnov (KS)-Test Test can only handle continuous distributions"
-        self.distribution_assumption(is_continuous, P, helper)
-        self.distribution_assumption(is_continuous, Q, helper)
+    def check_assumptions(self, report, P: Distribution, Q: Optional[Distribution] = None):
+        """
 
-        helper = "The Kolmogorov-Smirnov (KS)-Test cannot handle two correlated distributions"
-        self.pair_assumption(is_correlated, P, Q, helper)
+        :param report:
+        :param P:
+        :param Q:
+        :return:
+        """
+        report.add_assumption("P is continuous", P.is_continuous)
+
+        if Q is not None:
+            report.add_assumption("Q is continuous", Q.is_continuous)
+            report.add_assumption("P & Q not correlated", bool(not_correlated(P, Q)))
+
+        return report
 
     @staticmethod
     def critical_d(P_size: int, Q_size: int, alpha):
+        """
+
+        :param P_size:
+        :param Q_size:
+        :param alpha:
+        :return:
+        """
         crit_component = KolmogorovSmirnovTest.ALPHA_CRIT_TABLE[alpha]
         return crit_component * np.sqrt((P_size + Q_size) / (P_size * Q_size))
 
-    def _ks(self, P: Distribution, Q: Distribution, alternative: str):
+    def _ks(self, P: Distribution, Q: Distribution, alternative: str, conclusion):
+        """
+
+        :param P:
+        :param Q:
+        :param alternative:
+        :param conclusion:
+        :return:
+        """
         statistic, p_value = st.ks_2samp(P.data, Q.data, alternative=alternative)
 
         critical_d = lambda alpha: KolmogorovSmirnovTest.critical_d(len(P), len(Q), alpha)
 
         sided = "one-sided" if alternative != "two-sided" else alternative
-        report = Report(f"Kolmogorov-Smirnov({sided.capitalize()}) Different Mean",
+        report = Report(f"Kolmogorov-Smirnov",
                         "ks-statistic",
+                        test_description=f"({sided.capitalize()}) Different Mean",
+                        conclusion=conclusion,
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
@@ -47,27 +71,50 @@ class KolmogorovSmirnovTest(Test):
         return report
 
     def less_than(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
-        return self._ks(P, Q, "less").set_conclusion("Q-Mean Smaller")
+        """
+
+        :param P:
+        :param Q:
+        :return:
+        """
+        report = self._ks(P, Q, "less", "Q-Mean Smaller")
+        return self.check_assumptions(report, P, Q)
 
     def greater_than(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
-        return self._ks(P, Q, "greater").set_conclusion("Q-Mean Greater")
+        """
+
+        :param P:
+        :param Q:
+        :return:
+        """
+        report = self._ks(P, Q, "greater", "Q-Mean Greater")
+        return self.check_assumptions(report, P, Q)
 
     def not_equal(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
-        return self._ks(P, Q, "two-sided").set_conclusion("Means Different")
+        """
+
+        :param P:
+        :param Q:
+        :return:
+        """
+        report = self._ks(P, Q, "two-sided", "Means Different")
+        return self.check_assumptions(report, P, Q)
 
     def normality(self, P):
-        self.check_assumptions(P)
+        """
 
+        :param P:
+        :return:
+        """
         statistic, p_value = st.kstest(P.data, 'norm')
-        report = Report("Kolmogorov-Smirnov Normality",
+        report = Report("Kolmogorov-Smirnov ",
                         "ks-statistic",
+                        test_description=f"Normality",
+                        conclusion="Is Normal",
                         statistic=statistic,
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
                         interpretation=lambda alpha: p_value > alpha)
 
         self.experiment[P] = report
-        return report.set_conclusion("Is Normal")
+        return self.check_assumptions(report, P)

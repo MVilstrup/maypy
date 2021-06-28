@@ -21,12 +21,9 @@ from maypy.distributions.specific.log_gamma import LogGamma
 from maypy.distributions.specific.normal import Normal
 
 from maypy.distributions.distribution import Distribution
-from maypy.distributions.distribution_pair import DistributionPair
 
-ALL_NON_PARAMETRIC_DISTRIBUTIONS = [
+NP_DISTRIBUTIONS = [
     Pareto, TurkeyLambda, Alpha, Gamma, ExponentialNorm,
     Exponential, Logistic, PowerNorm, PowerLogNorm, LogNorm, DWeibull,
-    DGamma, Cosine, Chi2, Chi, Uniform, BetaPrime, Beta, LogGamma
+    DGamma, Cosine, Chi2, Chi, Uniform, BetaPrime, Beta, LogGamma, Normal
 ]
-
-COMMON_NON_PARAMETRIC = [Exponential, Logistic, Uniform, DWeibull, LogNorm, Pareto]

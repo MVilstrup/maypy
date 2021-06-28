@@ -1,6 +1,5 @@
 from typing import Optional
 
-from maypy.best_practices.checks import is_continuous
 from maypy.distributions import Distribution
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
@@ -10,13 +9,18 @@ import numpy as np
 
 class AndersonDarlingNormality(Test):
 
-    def check_assumptions(self, P: Distribution, Q: Optional[Distribution] = None):
-        helper = "The Anderson-Darling Test can only handle continuous distributions"
-        self.distribution_assumption(is_continuous, P, helper)
+    def check_assumptions(self, report, P: Distribution, Q=None):
+        """
+
+        :param report:
+        :param P:
+        :param Q:
+        :return:
+        """
+        report.add_assumption("P is continuous", P.is_continuous)
+        return report
 
     def __call__(self, P: Distribution):
-        self.check_assumptions(P)
-
         result = st.anderson(P.data)
 
         test_alphas = np.array(result.significance_level) / 100
@@ -31,4 +35,4 @@ class AndersonDarlingNormality(Test):
                         interpretation=lambda alpha: len(valid_alphas) > 0 and valid_alphas.max() >= alpha)
 
         self.experiment[P] = report
-        return report
+        return self.check_assumptions(report, P)

@@ -1,6 +1,5 @@
 from typing import Optional
 
-from maypy.best_practices.checks import is_continuous
 from maypy.distributions import Distribution
 from maypy.experiment.report import Report
 from maypy.experiment.test import Test
@@ -9,10 +8,17 @@ import scipy.stats as st
 
 class PearsonCorrelationTest(Test):
 
-    def check_assumptions(self, P: Distribution, Q: Optional[Distribution] = None):
-        helper = "The Pearson Correlation Test can only handle continuous distributions"
-        self.distribution_assumption(is_continuous, P, helper)
-        self.distribution_assumption(is_continuous, Q, helper)
+    def check_assumptions(self, report, P: Distribution, Q: Optional[Distribution] = None):
+        """
+
+        :param report:
+        :param P:
+        :param Q:
+        :return:
+        """
+        report.add_assumption("P is continuous", P.is_continuous)
+        report.add_assumption("Q is continuous", Q.is_continuous)
+        return report
 
     @staticmethod
     def interpretation(coefficient):
@@ -32,8 +38,6 @@ class PearsonCorrelationTest(Test):
         return {"correlation_type": type, "correlation_strenght": "Error"}
 
     def correlated(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
-
         correlation_coefficient, p_value = st.pearsonr(P.data, Q.data)
 
         # The correlation should be above 0.6 for the null hypothesis to be rejected
@@ -46,11 +50,9 @@ class PearsonCorrelationTest(Test):
                         interpretation=lambda alpha: (p_value < alpha) and (correlation_coefficient > 0.6))
 
         self.experiment[(P, Q)] = report
-        return report
+        return self.check_assumptions(report, P, Q)
 
     def not_correlated(self, P: Distribution, Q: Distribution):
-        self.check_assumptions(P, Q)
-
         correlation_coefficient, p_value = st.pearsonr(P.data, Q.data)
 
         # The correlation should be above 0.6 for the null hypothesis to be rejected
@@ -63,4 +65,4 @@ class PearsonCorrelationTest(Test):
                         interpretation=lambda alpha: (p_value > alpha) or (correlation_coefficient < 0.6))
 
         self.experiment[(P, Q)] = report
-        return report
+        return self.check_assumptions(report, P, Q)

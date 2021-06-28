@@ -20,5 +20,5 @@ class Test:
             if not report:
                 self.experiment.failure(helper, report, (P, Q))
 
-    def check_assumptions(self, P: Distribution, Q: Optional[Distribution] = None):
+    def check_assumptions(self, report, P: Distribution, Q: Optional[Distribution] = None):
         raise NotImplementedError()
