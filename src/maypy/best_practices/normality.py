@@ -19,6 +19,8 @@ def is_normal(P: Distribution, experiment):
         ShapiroWilkNormality(experiment),
         ChiSquareTest(experiment).normality,
         KolmogorovSmirnovTest(experiment).normality,
+        lambda P: P.skewness == "normal",
+        lambda P: P.kurtosis == "normal"
     ]
 
     normality_results = [test(P) for test in normality_tests]  # Run all normality tests
@@ -26,4 +28,4 @@ def is_normal(P: Distribution, experiment):
     non_normal_votes = len(normality_results) - normal_votes  # The amount of tests which did not
 
     # If most tests find the data to be normal distributed, the data is deemed gaussian
-    return normal_votes >= non_normal_votes
+    return normal_votes > non_normal_votes

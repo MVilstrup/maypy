@@ -1,6 +1,6 @@
 from typing import Optional
 
-from maypy.best_practices.correlation import  not_correlated
+from maypy.best_practices.correlation import not_correlated
 from maypy.distributions import Distribution
 from maypy.experiment.interpretation import Interpretation
 from maypy.experiment.report import Report

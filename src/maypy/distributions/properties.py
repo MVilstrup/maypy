@@ -4,7 +4,7 @@ from collections import namedtuple
 from functools import lru_cache
 
 from maypy.best_practices.sample_processing import prepare_data, sample_bins
-from maypy.utils import Interpretation
+from maypy.experiment.interpretation import Interpretation
 from pandas.core.dtypes.common import is_numeric_dtype
 import numpy as np
 import pandas as pd
@@ -73,6 +73,38 @@ class DistributionProperties:
     @lru_cache
     def is_parametric(self):
         return Interpretation(result=self.base.name == "norm", confidence=True)
+
+    @property
+    def skewness(self):
+        """
+        Source: https://www.spcforexcel.com/knowledge/basic-statistics/are-skewness-and-kurtosis-useful-statistics
+        :return:
+        """
+        from scipy.stats import skew
+        skewness = abs(skew(self.data))
+
+        if skewness < 0.5:
+            return "normal"
+        elif skewness < 1:
+            return "moderately_skewed"
+        else:
+            return "highly_skewed"
+
+    @property
+    def kurtosis(self):
+        """
+        Source: https://www.smartpls.com/documentation/functionalities/excess-kurtosis-and-skewness
+        :return:
+        """
+        from scipy.stats import kurtosis
+        kurtosis_score = kurtosis(self.data)
+
+        if kurtosis_score > 1:
+            return "peaked"
+        elif kurtosis_score < -1:
+            return "flat"
+        else:
+            return "normal"
 
     @property
     def CI(self):

@@ -27,7 +27,7 @@ def unpaired_non_parametric_different_medians(P: Distribution, Q: Distribution):
         if lower < 0 and upper < 0:
             return "P << Q"
         if lower > 0 and upper > 0:
-            return "Q >> 0"
+            return "P >> Q"
         if lower < 0 and abs(lower) > abs(upper):
             return "P < Q"
         if lower < 0 and abs(lower) < abs(upper):

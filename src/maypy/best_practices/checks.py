@@ -1,7 +1,6 @@
 from functools import lru_cache
 
 from maypy.distributions import Distribution
-from maypy.experiment.report import Report
 
 PARAMETRIC = "PARAMETRIC"
 NON_PARAMETRIC = "NON_PARAMETRIC"

@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Optional
 
 from maypy import ALPHA
@@ -50,9 +51,14 @@ class KolmogorovSmirnovTest(Test):
         :param conclusion:
         :return:
         """
+
+        def interpretation(alpha, p_value, statistic, critical_d):
+            return Interpretation(p_value < alpha, statistic < critical_d(alpha))
+
         statistic, p_value = st.ks_2samp(P.data, Q.data, alternative=alternative)
 
-        critical_d = lambda alpha: KolmogorovSmirnovTest.critical_d(len(P), len(Q), alpha)
+        critical_d = partial(lambda alpha, P_size, Q_size: KolmogorovSmirnovTest.critical_d(P_size, Q_size, alpha),
+                             P_size=len(P), Q_size=len(Q))
 
         sided = "one-sided" if alternative != "two-sided" else alternative
         report = Report(f"Kolmogorov-Smirnov",
@@ -63,7 +69,7 @@ class KolmogorovSmirnovTest(Test):
                         p_value=p_value,
                         h0_rejected=lambda alpha: p_value < alpha,
                         # The p_value should be less than alpha to be significant
-                        interpretation=lambda alpha: Interpretation(p_value < alpha, statistic < critical_d(alpha)))
+                        interpretation=partial(interpretation, statistic=statistic, p_value=p_value, critical_d=critical_d))
 
         report.at_alpha(critical_d=critical_d, below_critical_d=lambda alpha: statistic < critical_d(alpha))
         report.at_alpha(P_Q_not_correlated=not_correlated(P, Q).interpretation)

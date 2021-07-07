@@ -1,6 +1,5 @@
 from maypy.best_practices.checks import parametric_pair
 from maypy.distributions import Distribution
-from maypy.experiment.experiment import Experiment
 from maypy.hypothesis_testing.non_parametric.goodness_of_fit.kolmogorov import KolmogorovSmirnovTest
 
 

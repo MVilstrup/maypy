@@ -4,6 +4,8 @@ from scipy.interpolate import make_interp_spline
 
 
 def prepare_data(data, max_size):
+    data = np.array(data)
+
     max_size = len(data) if max_size < 0 else max_size
     max_size = min(len(data), max_size)
 
@@ -20,7 +22,10 @@ def prepare_data(data, max_size):
     data = data.ravel().astype(float)
 
     # Ensure the correct amount of samples are
-    return np.random.choice(data, max_size)
+    if len(data) > max_size:
+        data = np.random.choice(data, max_size)
+
+    return data
 
 
 def histogram(X, bins):

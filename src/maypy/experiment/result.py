@@ -17,6 +17,10 @@ class Result:
             else:
                 self.extra[key] = value
 
+    def all_interpretations(self, alpha):
+        for key, extra in self.extra_at_alpha.items():
+            yield key, extra[alpha]
+
     def __repr__(self):
         # @no:format
         R = lambda x, d=3: round(x, d) if isinstance(x, float) else x

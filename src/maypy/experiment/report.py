@@ -30,6 +30,11 @@ class Report:
     def interpretation(self, alpha=None):
         return self.interpretation_at_alpha[alpha if alpha is not None else float(ALPHA)]
 
+    def all_interpretations(self, alpha):
+        yield "Result", self.interpretation(alpha)
+        for key, value in self.extra_at_alpha.items():
+            yield key, value[alpha]
+
     def set_conclusion(self, header):
         self.conclusion = header
         return self
@@ -53,6 +58,9 @@ class Report:
 
     def __radd__(self, other):
         return int(self) + other
+
+    def __str__(self):
+        return f"{self.name} - {self.description}"
 
     def __repr__(self):
         # @no:format
